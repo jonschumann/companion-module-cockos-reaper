@@ -1,5 +1,6 @@
 import { CompanionStaticUpgradeResult, CompanionStaticUpgradeScript } from '@companion-module/base'
 import { ModuleConfig } from './config'
+import { DefaultNumberOfMarkers } from './markers'
 
 export function CreateUseInvertForFeedbacksUpgradeScript(
 	upgradeMap: Record<string, BooleanFeedbackOption>
@@ -41,6 +42,21 @@ export function CreateNumberOfTracksDefaultsUpgradeScript(): CompanionStaticUpgr
 		if (config) {
 			config.numberOfTracks ??= 8
 			config.numberOfFx ??= 8
+		}
+
+		return {
+			updatedConfig: config,
+			updatedActions: [],
+			updatedFeedbacks: [],
+		}
+	}
+}
+
+export function CreateNumberOfMarkersDefaultUpgradeScript(): CompanionStaticUpgradeScript<ModuleConfig> {
+	return (_, props) => {
+		const { config } = props
+		if (config) {
+			config.numberOfMarkers ??= DefaultNumberOfMarkers
 		}
 
 		return {

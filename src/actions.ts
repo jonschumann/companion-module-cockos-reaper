@@ -9,6 +9,7 @@ import { FloatMessage, OscMessage, Reaper, RecordMonitoringMode, StringMessage, 
 import { ModuleContext } from './index'
 import { BasicTextInput } from './inputs'
 import { GetTrack, GetTrackFx } from './helpers'
+import { GotoMarkerMessage, MarkerBankMessage, MarkerCountMessage, MaxNumberOfMarkers } from './markers'
 
 export enum ActionId {
 	// Transport
@@ -24,6 +25,9 @@ export enum ActionId {
 	ToggleRepeat = 'repeat',
 	GotoMarker = 'goto_marker',
 	GotoRegion = 'goto_region',
+	GotoMarkerSlot = 'goto_marker_slot',
+	MarkerBankNext = 'marker_bank_next',
+	MarkerBankPrevious = 'marker_bank_previous',
 
 	// Track
 	TrackMute = 'track_mute',
@@ -123,6 +127,49 @@ export function GetActionsList(getContext: () => ActionContext): CompanionAction
 				context.reaper.sendOscMessage(message)
 			},
 		},
+		[ActionId.GotoMarkerSlot]: {
+			name: 'Go To Marker Slot',
+			description: 'Go to the marker that is currently in a slot of the marker bank',
+			options: [
+				{
+					type: 'number',
+					label: 'Slot',
+					id: 'slot',
+					default: 1,
+					min: 1,
+					max: MaxNumberOfMarkers,
+				},
+			],
+			callback: (evt) => {
+				const context = getContext()
+
+				const slotNumber = Number(evt.options.slot)
+				const slot = context.markers.getSlot(slotNumber)
+
+				if (slot === undefined) {
+					context.log(
+						'warn',
+						`Marker slot ${evt.options.slot} not found. There are ${context.markers.numberOfSlots} marker slots configured`
+					)
+					return
+				}
+
+				const markerId = parseInt(slot.number, 10)
+
+				if (isNaN(markerId)) {
+					context.log('debug', `Marker slot ${slotNumber} is empty`)
+					return
+				}
+
+				context.reaper.sendOscMessage(GotoMarkerMessage(markerId))
+			},
+		},
+		[ActionId.MarkerBankNext]: BasicAction('Marker Bank Next', getContext, (reaper) =>
+			reaper.sendOscMessage(MarkerBankMessage('next'))
+		),
+		[ActionId.MarkerBankPrevious]: BasicAction('Marker Bank Previous', getContext, (reaper) =>
+			reaper.sendOscMessage(MarkerBankMessage('previous'))
+		),
 
 		// Track Actions
 		[ActionId.TrackMute]: TrackAction('Mute', getContext, (track) => track.mute()),
@@ -257,7 +304,16 @@ export function GetActionsList(getContext: () => ActionContext): CompanionAction
 				context.reaper.sendOscMessage(message)
 			},
 		},
-		[ActionId.RefreshOrc]: BasicAction('Refresh OSC', getContext, (reaper) => reaper.refreshControlSurfaces()),
+		[ActionId.RefreshOrc]: BasicAction('Refresh OSC', getContext, (reaper) => {
+			const { markers } = getContext()
+
+			// Reaper forgets the marker count when it restarts, so send it again
+			if (markers.numberOfSlots > 0) {
+				reaper.sendOscMessage(MarkerCountMessage(markers.numberOfSlots))
+			}
+
+			reaper.refreshControlSurfaces()
+		}),
 	}
 
 	return actions

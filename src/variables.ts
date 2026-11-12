@@ -77,6 +77,31 @@ export function GetVariableDefinitions(numberOfTracks: number, numberOfFx: numbe
 	return variables
 }
 
+/** Variables for the markers in the current marker bank, and the last marker passed by the play/edit cursor */
+export function GetMarkerVariableDefinitions(numberOfMarkers: number): CompanionVariableDefinition[] {
+	const variables: CompanionVariableDefinition[] = [
+		{ variableId: LastMarkerVariableId('name'), name: 'Last Marker Name' },
+		{ variableId: LastMarkerVariableId('number'), name: 'Last Marker Number' },
+	]
+
+	for (let slotNumber = 1; slotNumber <= numberOfMarkers; slotNumber++) {
+		variables.push(
+			{ variableId: MarkerSlotVariableId(slotNumber, 'name'), name: `Marker Slot ${slotNumber} Name` },
+			{ variableId: MarkerSlotVariableId(slotNumber, 'number'), name: `Marker Slot ${slotNumber} Number` }
+		)
+	}
+
+	return variables
+}
+
+export function MarkerSlotVariableId(slotNumber: number, property: 'name' | 'number'): string {
+	return `marker_${slotNumber}_${property}`
+}
+
+export function LastMarkerVariableId(property: 'name' | 'number'): string {
+	return `last_marker_${property}`
+}
+
 function TrackVariables(trackIndex: number, numberOfFx: number): ReaperPropertyVariableDefinition[] {
 	const variables: ReaperPropertyVariableDefinition[] = [
 		{

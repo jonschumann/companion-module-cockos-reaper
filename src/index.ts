@@ -11,14 +11,20 @@ import { GetPresetsList } from './presets'
 import { CustomMessageFeedbacks, FeedbackBindings, FeedbackId, GetFeedbacksList } from './feedbacks'
 import { GetActionsList } from './actions'
 import { LogLevel, OscMessage, Reaper, ReaperConfiguration } from 'reaper-osc'
-import { GetVariableDefinitions, ReaperProperty } from './variables'
-import { CreateNumberOfTracksDefaultsUpgradeScript, CreateUseInvertForFeedbacksUpgradeScript } from './upgrades'
+import { GetMarkerVariableDefinitions, GetVariableDefinitions, ReaperProperty } from './variables'
+import {
+	CreateNumberOfMarkersDefaultUpgradeScript,
+	CreateNumberOfTracksDefaultsUpgradeScript,
+	CreateUseInvertForFeedbacksUpgradeScript,
+} from './upgrades'
+import { DefaultNumberOfMarkers, MarkerCountMessage, MarkerState } from './markers'
 
 class ControllerInstance extends InstanceBase<ModuleConfig> {
 	private _reaper: Reaper | null
 	private _unsubscribeVariables: Unsubscribe[] = []
 	private _feedbackBindings: FeedbackBindings = {}
 	private _customMessageFeedbacks: CustomMessageFeedbacks = {}
+	private _markers: MarkerState = new MarkerState(0, () => undefined)
 
 	constructor(internal: unknown) {
 		super(internal)
@@ -30,13 +36,17 @@ class ControllerInstance extends InstanceBase<ModuleConfig> {
 		await this.configUpdated(config)
 
 		this.setActionDefinitions(
-			GetActionsList(() => ({ reaper: this._reaper!, log: (level, message) => this.log(level, message) }))
+			GetActionsList(() => ({
+				reaper: this._reaper!,
+				markers: this._markers,
+				log: (level, message) => this.log(level, message),
+			}))
 		)
 
-		this.setPresetDefinitions(GetPresetsList())
 		this.setFeedbackDefinitions(
 			GetFeedbacksList(() => ({
 				reaper: this._reaper!,
+				markers: this._markers,
 				log: (level, message) => this.log(level, message),
 				checkFeedback: (feedbackId) => this.checkFeedbacksById(feedbackId),
 				bindings: this._feedbackBindings,
@@ -72,13 +82,27 @@ class ControllerInstance extends InstanceBase<ModuleConfig> {
 
 		this._reaper = new Reaper(reaperConfig)
 
-		this.bindVariables(config.numberOfTracks, config.numberOfFx)
+		const numberOfMarkers = config.numberOfMarkers ?? DefaultNumberOfMarkers
+
+		this._markers = new MarkerState(numberOfMarkers, (values) => {
+			this.setVariableValues(values)
+			this.checkFeedbacks(FeedbackId.MarkerSlotCurrent)
+		})
+
+		this.bindVariables(config.numberOfTracks, config.numberOfFx, numberOfMarkers)
 		this.subscribeFeedbacks()
+		this.checkFeedbacks(FeedbackId.MarkerSlotCurrent)
+		this.setPresetDefinitions(GetPresetsList(numberOfMarkers))
 
 		this.log('debug', `Reaper Configuration: ${JSON.stringify(reaperConfig, null, 2)}`)
 
 		if (!(await this.connectOsc())) {
 			return
+		}
+
+		if (numberOfMarkers > 0) {
+			// Tell Reaper how many markers to send us (DEVICE_MARKER_COUNT). This needs to go before the refresh.
+			this._reaper.sendOscMessage(MarkerCountMessage(numberOfMarkers))
 		}
 
 		if (config.refreshOnInit) {
@@ -103,6 +127,12 @@ class ControllerInstance extends InstanceBase<ModuleConfig> {
 		Object.values(this._customMessageFeedbacks).forEach((feedback) => {
 			feedback.handler.handle(message)
 		})
+
+		try {
+			this._markers.handle(message)
+		} catch (err) {
+			this.log('debug', `Failed to handle marker message ${message.address}: ${err}`)
+		}
 	}
 
 	private async connectOsc(): Promise<boolean> {
@@ -135,14 +165,15 @@ class ControllerInstance extends InstanceBase<ModuleConfig> {
 		this.log('info', 'Stopped listening to Reaper')
 	}
 
-	private bindVariables(numberOfTracks: number, numberOfFx: number): void {
+	private bindVariables(numberOfTracks: number, numberOfFx: number, numberOfMarkers: number): void {
 		const variables = GetVariableDefinitions(numberOfTracks, numberOfFx)
 
 		const unsubscribes: Unsubscribe[] = []
 
-		this.setVariableDefinitions(variables)
+		this.setVariableDefinitions([...variables, ...GetMarkerVariableDefinitions(numberOfMarkers)])
 
-		const variableValues: CompanionVariableValues = {}
+		// Marker variables are not backed by reaper-osc properties - they are updated by MarkerState
+		const variableValues: CompanionVariableValues = this._markers.getVariableValues()
 
 		variables.forEach((variable) => {
 			const property = variable.getProperty(this._reaper!)
@@ -187,6 +218,7 @@ class ControllerInstance extends InstanceBase<ModuleConfig> {
 
 export interface ModuleContext {
 	readonly reaper: Reaper
+	readonly markers: MarkerState
 	readonly log: (level: LogLevel, message: string) => void
 }
 
@@ -203,4 +235,5 @@ runEntrypoint(ControllerInstance, [
 		[FeedbackId.ClickStatus]: { optionId: 'clickOrNot', trueValue: 'Active' },
 	}),
 	CreateNumberOfTracksDefaultsUpgradeScript(),
+	CreateNumberOfMarkersDefaultUpgradeScript(),
 ])

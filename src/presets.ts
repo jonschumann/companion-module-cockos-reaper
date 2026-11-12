@@ -6,8 +6,10 @@ import {
 } from '@companion-module/base'
 import { ActionId } from './actions'
 import { DefaultFeedbackStyles, FeedbackId } from './feedbacks'
+import { DefaultNumberOfMarkers } from './markers'
+import { LastMarkerVariableId, MarkerSlotVariableId } from './variables'
 
-export function GetPresetsList(): CompanionPresetDefinitions {
+export function GetPresetsList(numberOfMarkers: number = DefaultNumberOfMarkers): CompanionPresetDefinitions {
 	return {
 		// Transport
 		play: TransportButtonPreset({
@@ -103,6 +105,81 @@ export function GetPresetsList(): CompanionPresetDefinitions {
 			actionId: ActionId.TrackMuteToggle,
 			feedbackId: FeedbackId.TrackMute,
 		}),
+
+		// Markers
+		...MarkerPresets(numberOfMarkers),
+	}
+}
+
+function MarkerPresets(numberOfMarkers: number): CompanionPresetDefinitions {
+	const presets: CompanionPresetDefinitions = {
+		markerBankPrevious: MarkerButtonPreset({
+			name: 'Marker Bank Previous',
+			text: '◀\\nMARKERS',
+			actionId: ActionId.MarkerBankPrevious,
+		}),
+		markerBankNext: MarkerButtonPreset({
+			name: 'Marker Bank Next',
+			text: '▶\\nMARKERS',
+			actionId: ActionId.MarkerBankNext,
+		}),
+		lastMarkerName: MarkerButtonPreset({
+			name: 'Last Marker Name',
+			text: `$(reaper:${LastMarkerVariableId('name')})`,
+			color: combineRgb(144, 144, 144),
+		}),
+	}
+
+	for (let slotNumber = 1; slotNumber <= numberOfMarkers; slotNumber++) {
+		presets[`markerSlot${slotNumber}`] = MarkerButtonPreset({
+			name: `Go To Marker Slot ${slotNumber}`,
+			text: `$(reaper:${MarkerSlotVariableId(slotNumber, 'name')})`,
+			actionId: ActionId.GotoMarkerSlot,
+			feedbackId: FeedbackId.MarkerSlotCurrent,
+			slotNumber: slotNumber,
+		})
+	}
+
+	return presets
+}
+
+type MarkerButtonPresetProps = {
+	name: string
+	text: string
+	color?: number
+	actionId?: ActionId
+	feedbackId?: FeedbackId
+	slotNumber?: number
+}
+
+function MarkerButtonPreset(props: MarkerButtonPresetProps): CompanionButtonPresetDefinition {
+	const options = props.slotNumber !== undefined ? { slot: props.slotNumber } : {}
+
+	return {
+		type: 'button',
+		category: 'Markers',
+		name: props.name,
+		style: {
+			text: props.text,
+			size: 'auto',
+			color: props.color ?? combineRgb(255, 255, 255),
+			bgcolor: combineRgb(0, 26, 51),
+		},
+		feedbacks: props.feedbackId
+			? [
+					{
+						feedbackId: props.feedbackId,
+						options: options,
+						style: DefaultFeedbackStyles[props.feedbackId],
+					},
+			  ]
+			: [],
+		steps: [
+			{
+				down: props.actionId ? [{ actionId: props.actionId, options: options }] : [],
+				up: [],
+			},
+		],
 	}
 }
 

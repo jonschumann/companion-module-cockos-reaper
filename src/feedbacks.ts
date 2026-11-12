@@ -21,6 +21,7 @@ import {
 } from 'reaper-osc'
 import { BasicTextInput } from './inputs'
 import { GetTrack, GetTrackFx } from './helpers'
+import { MaxNumberOfMarkers } from './markers'
 
 export enum FeedbackId {
 	PlayStatus = 'playStatus',
@@ -31,6 +32,9 @@ export enum FeedbackId {
 	RepeatStatus = 'repeatStatus',
 	ClickStatus = 'clickStatus',
 	CustomMessage = 'customMessage',
+
+	// Markers
+	MarkerSlotCurrent = 'marker_slot_current',
 
 	// Track
 	TrackMute = 'track_mute',
@@ -53,6 +57,7 @@ export const DefaultFeedbackStyles: { [id in FeedbackId]: Partial<CompanionButto
 	[FeedbackId.RepeatStatus]: { color: combineRgb(255, 255, 255), bgcolor: combineRgb(153, 0, 153) },
 	[FeedbackId.ClickStatus]: { color: combineRgb(255, 255, 255), bgcolor: combineRgb(11, 138, 179) },
 	[FeedbackId.CustomMessage]: { color: combineRgb(255, 255, 255), bgcolor: combineRgb(0, 255, 0) },
+	[FeedbackId.MarkerSlotCurrent]: { color: combineRgb(255, 255, 255), bgcolor: combineRgb(0, 102, 204) },
 	[FeedbackId.TrackMute]: { color: combineRgb(255, 255, 255), bgcolor: combineRgb(183, 0, 0) },
 	[FeedbackId.TrackSolo]: { color: combineRgb(255, 255, 255), bgcolor: combineRgb(249, 199, 0) },
 	[FeedbackId.TrackRecordArm]: { color: combineRgb(255, 255, 255), bgcolor: combineRgb(183, 0, 0) },
@@ -135,6 +140,26 @@ export function GetFeedbacksList(getContext: () => FeedbackContext): CompanionFe
 			defaultStyle: DefaultFeedbackStyles[FeedbackId.ClickStatus],
 			options: [],
 			...ReaperPropertyFeedbackCallbacks<Reaper>(getContext, (reaper) => reaper, 'isMetronomeEnabled'),
+		},
+
+		// Markers
+		[FeedbackId.MarkerSlotCurrent]: {
+			type: 'boolean',
+			name: 'Marker Slot Is Current Marker',
+			description: 'Change style when the marker in a slot is the last marker passed by the play/edit cursor',
+			defaultStyle: DefaultFeedbackStyles[FeedbackId.MarkerSlotCurrent],
+			options: [
+				{
+					type: 'number',
+					label: 'Slot',
+					id: 'slot',
+					default: 1,
+					min: 1,
+					max: MaxNumberOfMarkers,
+				},
+			],
+			// Rechecked by the module whenever Reaper reports a marker change
+			callback: (evt) => getContext().markers.isSlotCurrent(Number(evt.options.slot)),
 		},
 
 		// Track

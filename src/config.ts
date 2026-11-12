@@ -1,4 +1,5 @@
 import { Regex, SomeCompanionConfigField } from '@companion-module/base'
+import { DefaultNumberOfMarkers, MaxNumberOfMarkers } from './markers'
 
 export interface ModuleConfig {
 	host: string
@@ -7,6 +8,7 @@ export interface ModuleConfig {
 	refreshOnInit: boolean
 	numberOfTracks: number
 	numberOfFx: number
+	numberOfMarkers: number
 }
 
 export function GetConfigFields(): SomeCompanionConfigField[] {
@@ -73,6 +75,17 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 			min: 1,
 			max: 512,
 			default: 8,
+		},
+		{
+			type: 'number',
+			id: 'numberOfMarkers',
+			label: 'Marker Slots',
+			width: 3,
+			tooltip:
+				'Sets the number of markers per bank. This is sent to REAPER on start. Use 0 to leave the marker count configured in REAPER untouched.',
+			min: 0,
+			max: MaxNumberOfMarkers,
+			default: DefaultNumberOfMarkers,
 		},
 	]
 }
