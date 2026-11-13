@@ -25,6 +25,7 @@ class ControllerInstance extends InstanceBase<ModuleConfig> {
 	private _feedbackBindings: FeedbackBindings = {}
 	private _customMessageFeedbacks: CustomMessageFeedbacks = {}
 	private _markers: MarkerState = new MarkerState(0, () => undefined)
+	private _isInitialised = false
 
 	constructor(internal: unknown) {
 		super(internal)
@@ -53,6 +54,10 @@ class ControllerInstance extends InstanceBase<ModuleConfig> {
 				customMessageFeedbacks: this._customMessageFeedbacks,
 			}))
 		)
+
+		// Presets go last, as they refer to the actions and feedbacks
+		this._isInitialised = true
+		this.updatePresets()
 	}
 
 	public async configUpdated(config: ModuleConfig): Promise<void> {
@@ -92,7 +97,11 @@ class ControllerInstance extends InstanceBase<ModuleConfig> {
 		this.bindVariables(config.numberOfTracks, config.numberOfFx, numberOfMarkers)
 		this.subscribeFeedbacks()
 		this.checkFeedbacks(FeedbackId.MarkerSlotCurrent)
-		this.setPresetDefinitions(GetPresetsList(numberOfMarkers))
+
+		if (this._isInitialised) {
+			// The marker presets depend on the number of marker slots
+			this.updatePresets()
+		}
 
 		this.log('debug', `Reaper Configuration: ${JSON.stringify(reaperConfig, null, 2)}`)
 
@@ -119,6 +128,10 @@ class ControllerInstance extends InstanceBase<ModuleConfig> {
 		await this.disconnectOsc()
 		this.unbindVariables()
 		this.unsubscribeFeedbacks()
+	}
+
+	private updatePresets(): void {
+		this.setPresetDefinitions(GetPresetsList(this._markers.numberOfSlots))
 	}
 
 	private handleCustomMessages(message: OscMessage, _: boolean) {
