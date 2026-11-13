@@ -17,7 +17,7 @@ import {
 	CreateNumberOfTracksDefaultsUpgradeScript,
 	CreateUseInvertForFeedbacksUpgradeScript,
 } from './upgrades'
-import { DefaultNumberOfMarkers, MarkerCountMessage, MarkerState } from './markers'
+import { DefaultNumberOfMarkers, MarkerCountMessages, MarkerState } from './markers'
 
 class ControllerInstance extends InstanceBase<ModuleConfig> {
 	private _reaper: Reaper | null
@@ -102,7 +102,7 @@ class ControllerInstance extends InstanceBase<ModuleConfig> {
 
 		if (numberOfMarkers > 0) {
 			// Tell Reaper how many markers to send us (DEVICE_MARKER_COUNT). This needs to go before the refresh.
-			this._reaper.sendOscMessage(MarkerCountMessage(numberOfMarkers))
+			MarkerCountMessages(numberOfMarkers).forEach((message) => this._reaper?.sendOscMessage(message))
 		}
 
 		if (config.refreshOnInit) {

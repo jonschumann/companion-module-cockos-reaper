@@ -24,8 +24,10 @@ This module connects to the Cockos Reaper software.
 
 Reaper can tell Companion the names of the markers in the project. Markers are shown in _slots_: with 10 **Marker Slots**, slot 1 to 10 hold the first 10 markers of the project in timeline order. Use the **Marker Bank Next** and **Marker Bank Previous** actions to page through the rest of the markers.
 
-- The number of marker slots is sent to Reaper when the module starts and when the **Refresh OSC** action is used. If Reaper is restarted while Companion is running, use **Refresh OSC** to get the markers back. Set **Marker Slots** to 0 to leave the marker count configured in Reaper untouched.
-- **Go To Marker Slot** goes to the marker that is currently in a slot. **Go To Marker** goes to a marker by its ID (the number shown in Reaper), regardless of the slot it is in.
+- The number of marker slots is sent to Reaper when the module starts and when the **Refresh OSC** action is used. Reaper remembers the marker bank that was selected. If Reaper is restarted while Companion is running, use **Refresh OSC** to get the markers back. Set **Marker Slots** to 0 to leave the marker count configured in Reaper untouched.
+- **Go To Marker Slot** goes to the marker that is currently in a slot. Nothing happens if the slot is empty.
+- **Go To Marker** counts markers in timeline order, starting from the first marker of the current marker bank. On the first bank, **Go To Marker** 12 goes to the 12th marker of the project. This is not always the same as the marker ID shown in Reaper.
+- **Marker Bank Next** on the last bank goes back to the first bank, and **Marker Bank Previous** on the first bank goes to the last bank.
 - The **Marker Slot Is Current Marker** feedback is active when the marker in a slot is the last marker passed by the play cursor (or the edit cursor when stopped).
 - The pattern config of the OSC device in Reaper needs to contain the `MARKER_NAME`, `MARKER_NUMBER`, `LAST_MARKER_NAME`, `LAST_MARKER_NUMBER`, `DEVICE_MARKER_COUNT`, `DEVICE_PREV_MARKER_BANK` and `DEVICE_NEXT_MARKER_BANK` patterns. This is the case for the `Default` pattern config.
 

@@ -9,7 +9,7 @@ import { FloatMessage, OscMessage, Reaper, RecordMonitoringMode, StringMessage, 
 import { ModuleContext } from './index'
 import { BasicTextInput } from './inputs'
 import { GetTrack, GetTrackFx } from './helpers'
-import { GotoMarkerMessage, MarkerBankMessage, MarkerCountMessage, MaxNumberOfMarkers } from './markers'
+import { GotoMarkerSlotMessage, MarkerBankMessage, MarkerCountMessages, MaxNumberOfMarkers } from './markers'
 
 export enum ActionId {
 	// Transport
@@ -144,9 +144,8 @@ export function GetActionsList(getContext: () => ActionContext): CompanionAction
 				const context = getContext()
 
 				const slotNumber = Number(evt.options.slot)
-				const slot = context.markers.getSlot(slotNumber)
 
-				if (slot === undefined) {
+				if (context.markers.getSlot(slotNumber) === undefined) {
 					context.log(
 						'warn',
 						`Marker slot ${evt.options.slot} not found. There are ${context.markers.numberOfSlots} marker slots configured`
@@ -154,14 +153,8 @@ export function GetActionsList(getContext: () => ActionContext): CompanionAction
 					return
 				}
 
-				const markerId = parseInt(slot.number, 10)
-
-				if (isNaN(markerId)) {
-					context.log('debug', `Marker slot ${slotNumber} is empty`)
-					return
-				}
-
-				context.reaper.sendOscMessage(GotoMarkerMessage(markerId))
+				// Reaper ignores this if the slot is empty
+				context.reaper.sendOscMessage(GotoMarkerSlotMessage(slotNumber))
 			},
 		},
 		[ActionId.MarkerBankNext]: BasicAction('Marker Bank Next', getContext, (reaper) =>
@@ -309,7 +302,7 @@ export function GetActionsList(getContext: () => ActionContext): CompanionAction
 
 			// Reaper forgets the marker count when it restarts, so send it again
 			if (markers.numberOfSlots > 0) {
-				reaper.sendOscMessage(MarkerCountMessage(markers.numberOfSlots))
+				MarkerCountMessages(markers.numberOfSlots).forEach((message) => reaper.sendOscMessage(message))
 			}
 
 			reaper.refreshControlSurfaces()

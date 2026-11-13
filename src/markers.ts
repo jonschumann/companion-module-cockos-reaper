@@ -128,9 +128,15 @@ export class MarkerState {
 	}
 }
 
-/** Tells Reaper how many markers this device wants information for (DEVICE_MARKER_COUNT) */
-export function MarkerCountMessage(numberOfMarkers: number): OscMessage {
-	return new IntegerMessage('/device/marker/count', numberOfMarkers)
+/**
+ * Tells Reaper how many markers this device wants information for (DEVICE_MARKER_COUNT).
+ *
+ * Reaper only sends values that changed since it last sent them to this device, so asking for the same count
+ * again (e.g. when the module restarts) would not get us the markers. Resetting the count first makes Reaper
+ * send every slot again. The selected marker bank is not affected.
+ */
+export function MarkerCountMessages(numberOfMarkers: number): OscMessage[] {
+	return [new IntegerMessage('/device/marker/count', 0), new IntegerMessage('/device/marker/count', numberOfMarkers)]
 }
 
 /** Selects the next/previous bank of markers (DEVICE_NEXT_MARKER_BANK / DEVICE_PREV_MARKER_BANK) */
@@ -138,7 +144,12 @@ export function MarkerBankMessage(direction: 'next' | 'previous'): OscMessage {
 	return new OscMessage(`/device/marker/bank/${direction === 'next' ? '+' : '-'}`)
 }
 
-/** Goes to a marker by its ID (GOTO_MARKER) */
-export function GotoMarkerMessage(markerId: number): OscMessage {
-	return new OscMessage(`/marker/${markerId}`)
+/**
+ * Goes to the marker in a slot of the current marker bank (GOTO_MARKER).
+ *
+ * Reaper counts the number in the address from the first marker of the current bank, in timeline order. It is
+ * not the ID of the marker.
+ */
+export function GotoMarkerSlotMessage(slotNumber: number): OscMessage {
+	return new OscMessage(`/marker/${slotNumber}`)
 }
